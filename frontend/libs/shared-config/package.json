@@ -1,0 +1,9 @@
+{
+  "name": "@project/shared-config",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./tsconfig.base.json",
+  "exports": {
+    "./tsconfig": "./tsconfig.base.json"
+  }
+}

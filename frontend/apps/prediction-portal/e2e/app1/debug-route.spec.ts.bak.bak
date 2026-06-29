@@ -1,0 +1,31 @@
+import { test, expect } from '@playwright/test';
+
+const MOCK_VALUATION = {
+  code: 200, message: 'success',
+  data: { predicted_price: 425000, currency: 'USD',
+    input_features: { square_footage: 2000, bedrooms: 3, bathrooms: 2, year_built: 2010, lot_size: 5000, distance_to_city_center: 5.2, school_rating: 8 },
+    model_version: 'LinearRegression', timestamp: '2026-06-17T10:30:00Z' },
+};
+
+test('debug valuation route', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', req => requests.push(`${req.method()} ${req.url()}`));
+
+  await page.route('**/api/v1/valuation', async route => {
+    console.log('ROUTE MATCHED:', route.request().url());
+    await route.fulfill({ json: MOCK_VALUATION });
+  });
+
+  await page.goto('/app1');
+  await page.locator('[data-testid="input-square-footage"]').fill('2000');
+  await page.locator('[data-testid="input-bedrooms"]').fill('3');
+  await page.locator('[data-testid="input-bathrooms"]').fill('2');
+  await page.locator('[data-testid="input-year-built"]').fill('2010');
+  await page.locator('[data-testid="input-lot-size"]').fill('5000');
+  await page.locator('[data-testid="input-distance"]').fill('5');
+  await page.locator('[data-testid="input-school-rating"]').fill('8');
+  await page.locator('[data-testid="btn-get-valuation"]').click();
+  
+  console.log('ALL REQUESTS:', JSON.stringify(requests));
+  await expect(page.locator('[data-testid="result-estimated-value"]')).toBeVisible({ timeout: 5000 });
+});

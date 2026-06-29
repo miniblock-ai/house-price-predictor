@@ -1,0 +1,44 @@
+import { test, expect } from '@playwright/test';
+
+const MOCK_VALUATION = {
+  code: 200, message: 'success',
+  data: { predicted_price: 425000, currency: 'USD',
+    input_features: { square_footage: 2000, bedrooms: 3, bathrooms: 2, year_built: 2010, lot_size: 5000, distance_to_city_center: 5.2, school_rating: 8 },
+    model_version: 'LinearRegression', timestamp: '2026-06-17T10:30:00Z' },
+};
+
+test('debug submit with route', async ({ page }) => {
+  const responses: string[] = [];
+  page.on('response', res => {
+    if (res.url().includes('/api/v1/valuation')) responses.push(`RESPONSE ${res.status()} ${res.url()}`);
+  });
+
+  await page.route('**/api/v1/valuation', async route => {
+    console.log('INTERCEPTED:', route.request().method(), route.request().url());
+    await route.fulfill({ json: MOCK_VALUATION });
+  });
+
+  await page.goto('/app1');
+  await page.locator('[data-testid="input-square-footage"]').fill('2000');
+  await page.locator('[data-testid="input-bedrooms"]').fill('3');
+  await page.locator('[data-testid="input-bathrooms"]').fill('2');
+  await page.locator('[data-testid="input-year-built"]').fill('2010');
+  await page.locator('[data-testid="input-lot-size"]').fill('5000');
+  await page.locator('[data-testid="input-distance"]').fill('5');
+  await page.locator('[data-testid="input-school-rating"]').fill('8');
+  await page.locator('[data-testid="btn-get-valuation"]').click();
+
+  await page.waitForTimeout(1000);
+  console.log('RESPONSES:', JSON.stringify(responses));
+  
+  // Check what's on the page
+  const result = page.locator('[data-testid="result-estimated-value"]');
+  const error = page.locator('[data-testid="error-message"]');
+  const isResultVisible = await result.isVisible().catch(() => false);
+  const isErrorVisible = await error.isVisible().catch(() => false);
+  console.log('result visible:', isResultVisible, 'error visible:', isErrorVisible);
+  if (isResultVisible) console.log('result text:', await result.textContent());
+  if (isErrorVisible) console.log('error text:', await error.textContent());
+
+  await expect(result).toBeVisible({ timeout: 5000 });
+});

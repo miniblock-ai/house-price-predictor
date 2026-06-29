@@ -1,0 +1,21 @@
+server:
+  port: 8002
+
+spring:
+  application:
+    name: property-market-analysis
+
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: expireAfterWrite=5m,maximumSize=100,recordStats
+
+market:
+  ml-api:
+    url: ${ML_API_URL:http://localhost:8000}
+    timeout-seconds: 5
+  dataset:
+    path: data/House Price Dataset.csv

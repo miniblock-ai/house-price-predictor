@@ -1,0 +1,26 @@
+server:
+  port: 0
+
+spring:
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  cache:
+    type: none
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+    instances:
+      mlApi:
+        base-config: default
+
+market:
+  ml-api:
+    url: http://localhost:0
+    timeout-seconds: 5
+  dataset:
+    path: data/House Price Dataset.csv

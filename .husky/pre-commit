@@ -1,0 +1,2 @@
+cd frontend/apps/prediction-portal
+npx lint-staged

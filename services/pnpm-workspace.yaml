@@ -1,0 +1,6 @@
+packages:
+  - 'nextjs-portal'
+  - 'packages/*'
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
