@@ -17,21 +17,8 @@ Microservice-based implementation of the Housing Price Prediction System.
 house-price-predictor/
 ├── services/                      # Backend microservices
 │   ├── price-prediction-api/      # ML model API (Python)
-│   │   ├── app/
-│   │   │   ├── main.py            # FastAPI entry point
-│   │   │   ├── models/            # Pydantic schemas
-│   │   │   ├── ml/                # ML model (trainer, base class, implementations)
-│   │   │   │   └── data/          # Training & test datasets
-│   │   │   └── utils/             # Helper utilities
-│   │   ├── artifacts/             # Trained model & metrics output
-│   │   ├── Dockerfile
-│   │   └── requirements.txt
-│   │
 │   ├── value-estimator-api/       # Property valuation API (Python)
-│   │   └── app/                   # FastAPI backend
-│   │
 │   └── market-analysis-api/       # Market analysis API (Java)
-│       └── src/                   # Spring Boot backend
 │
 ├── frontend/                      # Next.js portal (pnpm workspace)
 │   ├── apps/
