@@ -36,3 +36,7 @@ node_modules/
 
 # Worktrees
 .worktrees/
+
+# Generated pnpm lockfiles (sub-workspaces)
+**/pnpm-lock.yaml
+pnpm-workspace.yaml

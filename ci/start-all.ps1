@@ -1,38 +1,40 @@
-# start-all.ps1 — Start all 4 microservices for E2E testing
-# Usage: .\ci\start-all.ps1
-#
-# Prerequisites:
-#   - Python 3.10+ with pip (set E2E_PYTHON env var or auto-detect)
-#   - JDK 21+ with JAVA_HOME set
-#   - Maven in PATH (mvn.cmd)
+#!/usr/bin/env pwsh
+<#
+.SYNOPSIS
+    Start all 4 microservices for E2E testing
+.DESCRIPTION
+    Orchestrates startup of:
+      1. price-prediction-api (:8000) — Docker container
+      2. value-estimator-api  (:8001) — uvicorn process
+      3. market-analysis-api  (:8002) — Maven spring-boot:run
+      4. prediction-portal    (:3001) — pnpm dev
+.PARAMETER SkipBuild
+    Skip Docker build and use existing image
+#>
+
+param([switch]$SkipBuild)
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-
-# Service directories (matching architecture doc naming)
-$PredictionDir     = Join-Path $ProjectRoot "services/price-prediction-api"
-$EstimatorDir      = Join-Path $ProjectRoot "services/value-estimator-api"
-$MarketAnalysisDir = Join-Path $ProjectRoot "services/market-analysis-api"
-$PortalDir         = Join-Path $ProjectRoot "frontend/apps/prediction-portal"
+$CiDir       = Join-Path $ProjectRoot "ci"
 
 # Ports
-$PredictionPort     = 8000  # price-prediction-api (ML inference)
-$EstimatorPort      = 8001  # value-estimator-api (App 1 backend)
-$MarketAnalysisPort = 8002  # market-analysis-api (App 2 backend)
-$PortalPort         = 3001  # prediction-portal (Next.js)
+$PredictionPort     = 8000
+$EstimatorPort      = 8001
+$MarketAnalysisPort = 8002
+$PortalPort         = 3001
 
-# Health check config (industry standard: 5-10s)
+# Health check config
 $HealthCheckTimeoutSec = 10
 
-# Log files (combined stdout+stderr) — placed in .log/ to keep root clean
-$LogDir             = Join-Path $ProjectRoot ".log"
+# Log files
+$LogDir  = Join-Path $ProjectRoot ".log"
 $null = New-Item -ItemType Directory -Force -Path $LogDir
-$PredictionLog     = Join-Path $LogDir "price-prediction-api.log"
 $EstimatorLog      = Join-Path $LogDir "value-estimator-api.log"
 $MarketAnalysisLog = Join-Path $LogDir "market-analysis-api.log"
 $PortalLog         = Join-Path $LogDir "prediction-portal.log"
 
-$predPid = 0; $estPid = 0; $marketPid = 0; $portalPid = 0
+$estPid = 0; $marketPid = 0; $portalPid = 0
 
 function Pass  { Write-Host "[PASS] $args" -ForegroundColor Green }
 function Fail  { Write-Host "[FAIL] $args" -ForegroundColor Red; exit 1 }
@@ -62,7 +64,7 @@ Info "Using Python: $python"
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "  E2E Services — Startup" -ForegroundColor Cyan
+Write-Host "  E2E Services - Startup" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -80,40 +82,24 @@ Start-Sleep 1
 Pass "All ports available"
 
 # ════════════════════════════════════════════
-#  1. Start price-prediction-api (:8000)
+#  1. price-prediction-api (:8000) via Docker
 # ════════════════════════════════════════════
-Info "Starting price-prediction-api (port $PredictionPort)..."
-& $python -c "import uvicorn" 2>$null
-if ($LASTEXITCODE -ne 0) { & $python -m pip install -q -r (Join-Path $PredictionDir "requirements.txt") 2>$null }
-
-$processId = (Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$python -m uvicorn app.main:app --host 127.0.0.1 --port $PredictionPort > `"$PredictionLog`" 2>&1`"" -PassThru -WindowStyle Hidden -WorkingDirectory $PredictionDir).Id
-$predPid = $processId
-Info "  price-prediction-api process started (PID: $predPid)"
-Start-Sleep 3
-
-$predReady = $false
-$predLastError = ""
-for ($i = 0; $i -lt 15; $i++) {
-    try {
-        $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$PredictionPort/health" -UseBasicParsing -TimeoutSec $HealthCheckTimeoutSec
-        if ($resp.Content -match 'healthy') { $predReady = $true; break }
-    } catch {
-        $predLastError = $_.Exception.Message
-        Info "  Health check attempt $($i+1)/15 failed: $predLastError"
-    }
-    Start-Sleep 2
+if (-not $SkipBuild) {
+    Info "Building Docker image for price-prediction-api..."
+    & (Join-Path $CiDir "docker-build-prediction.ps1")
 }
-if (-not $predReady) { Fail "price-prediction-api failed to start — last error: $predLastError — check $PredictionLog" }
-Pass "price-prediction-api ready (PID: $predPid)"
+
+Info "Starting Docker container for price-prediction-api..."
+& (Join-Path $CiDir "docker-run-prediction.ps1") -Port $PredictionPort
+Pass "price-prediction-api ready"
 
 # ════════════════════════════════════════════
-#  2. Start value-estimator-api (:8001)
+#  2. value-estimator-api (:8001)
 # ════════════════════════════════════════════
+$EstimatorDir = Join-Path $ProjectRoot "services/value-estimator-api"
 Info "Starting value-estimator-api (port $EstimatorPort)..."
-
 $processId = (Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$python -m uvicorn app.main:app --host 127.0.0.1 --port $EstimatorPort > `"$EstimatorLog`" 2>&1`"" -PassThru -WindowStyle Hidden -WorkingDirectory $EstimatorDir).Id
 $estPid = $processId
-Info "  value-estimator-api process started (PID: $estPid)"
 Start-Sleep 3
 
 $estReady = $false
@@ -124,24 +110,23 @@ for ($i = 0; $i -lt 15; $i++) {
         if ($resp.StatusCode -eq 200) { $estReady = $true; break }
     } catch {
         $estLastError = $_.Exception.Message
-        Info "  Health check attempt $($i+1)/15 failed: $estLastError"
+        Info "  Health check $($i+1)/15 failed: $estLastError"
     }
     Start-Sleep 2
 }
-if (-not $estReady) { Fail "value-estimator-api failed to start — last error: $estLastError — check $EstimatorLog" }
+if (-not $estReady) { Fail "value-estimator-api failed - last error: $estLastError - check $EstimatorLog" }
 Pass "value-estimator-api ready (PID: $estPid)"
 
 # ════════════════════════════════════════════
-#  3. Start market-analysis-api (:8002)
+#  3. market-analysis-api (:8002)
 # ════════════════════════════════════════════
-Info "Starting market-analysis-api (port $MarketAnalysisPort)..."
-
+$MarketAnalysisDir = Join-Path $ProjectRoot "services/market-analysis-api"
 $mvn = (Get-Command mvn.cmd -ErrorAction SilentlyContinue).Source
-if (-not $mvn) { Fail "mvn.cmd not found in PATH. Ensure Maven is installed and in PATH." }
+if (-not $mvn) { Fail "mvn.cmd not found in PATH. Ensure Maven is installed." }
 
+Info "Starting market-analysis-api (port $MarketAnalysisPort)..."
 $processId = (Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$mvn spring-boot:run -q > `"$MarketAnalysisLog`" 2>&1`"" -PassThru -WindowStyle Hidden -WorkingDirectory $MarketAnalysisDir).Id
 $marketPid = $processId
-Info "  market-analysis-api process started (PID: $marketPid)"
 Start-Sleep 5
 
 $marketReady = $false
@@ -152,27 +137,26 @@ for ($i = 0; $i -lt 20; $i++) {
         if ($resp.Content -match 'healthy') { $marketReady = $true; break }
     } catch {
         $marketLastError = $_.Exception.Message
-        Info "  Health check attempt $($i+1)/20 failed: $marketLastError"
+        Info "  Health check $($i+1)/20 failed: $marketLastError"
     }
     Start-Sleep 3
 }
-if (-not $marketReady) { Fail "market-analysis-api failed to start — last error: $marketLastError — check $MarketAnalysisLog" }
+if (-not $marketReady) { Fail "market-analysis-api failed - last error: $marketLastError - check $MarketAnalysisLog" }
 Pass "market-analysis-api ready (PID: $marketPid)"
 
 # ════════════════════════════════════════════
-#  4. Start prediction-portal (:3001)
+#  4. prediction-portal (:3001)
 # ════════════════════════════════════════════
-Info "Starting prediction-portal (port $PortalPort)..."
-
+$PortalDir = Join-Path $ProjectRoot "frontend/apps/prediction-portal"
 $pnpm = (Get-Command pnpm -ErrorAction SilentlyContinue).Source
 if (-not $pnpm) { Fail "pnpm not found in PATH. Ensure pnpm is installed." }
 
+Info "Starting prediction-portal (port $PortalPort)..."
 $processId = (Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"pnpm dev -p $PortalPort > `"$PortalLog`" 2>&1`"" -PassThru -WindowStyle Hidden -WorkingDirectory $PortalDir).Id
 $portalPid = $processId
-Info "  prediction-portal process started (PID: $portalPid)"
 Start-Sleep 3
 
-# Phase 1: Wait for port to start LISTENING (fast check, Next.js opens port quickly)
+# Phase 1: Wait for port LISTENING
 $portalReady = $false
 $portalLastError = ""
 for ($i = 0; $i -lt 15; $i++) {
@@ -180,35 +164,33 @@ for ($i = 0; $i -lt 15; $i++) {
     if ($listening) { $portalReady = $true; break }
     Start-Sleep 2
 }
-if (-not $portalReady) { Fail "prediction-portal never opened port 3001 — check $PortalLog" }
+if (-not $portalReady) { Fail "prediction-portal never opened port 3001 - check $PortalLog" }
 
-# Phase 2: Wait for HTTP 200 (give Next.js time for Turbopack lazy compilation)
+# Phase 2: Wait for HTTP 200
 $portalReady = $false
-$portalLastError = ""
 for ($i = 0; $i -lt 15; $i++) {
     try {
         $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$PortalPort/api/health" -UseBasicParsing -TimeoutSec $HealthCheckTimeoutSec
         if ($resp.StatusCode -eq 200) { $portalReady = $true; break }
     } catch {
-        # Fallback: check root page if /api/health doesn't exist yet
         try {
             $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$PortalPort" -UseBasicParsing -TimeoutSec $HealthCheckTimeoutSec
             if ($resp.StatusCode -eq 200) { $portalReady = $true; break }
         } catch {
             $portalLastError = $_.Exception.Message
-            Info "  Health check attempt $($i+1)/15 failed: $portalLastError"
+            Info "  Health check $($i+1)/15 failed: $portalLastError"
         }
     }
     Start-Sleep 2
 }
-if (-not $portalReady) { Fail "prediction-portal failed to start — last error: $portalLastError — check $PortalLog" }
+if (-not $portalReady) { Fail "prediction-portal failed - last error: $portalLastError - check $PortalLog" }
 Pass "prediction-portal ready (PID: $portalPid)"
 
 # ════════════════════════════════════════════
-#  Output PIDs for stop-all.ps1
+#  Output PIDs
 # ════════════════════════════════════════════
 $pidFile = Join-Path $ProjectRoot ".e2e-pids.json"
-@{ predPid = $predPid; estPid = $estPid; marketPid = $marketPid; portalPid = $portalPid } | ConvertTo-Json | Set-Content $pidFile
+@{ predPid = 0; estPid = $estPid; marketPid = $marketPid; portalPid = $portalPid } | ConvertTo-Json | Set-Content $pidFile
 Info "PIDs saved to $pidFile"
 
 Write-Host ""
@@ -226,7 +208,6 @@ Info "Run '.\ci\stop-all.ps1' to stop services"
 
 } catch {
     Fail "Startup failed: $($_.Exception.Message)"
-    Stop-ServicePid $predPid
     Stop-ServicePid $estPid
     Stop-ServicePid $marketPid
     Stop-ServicePid $portalPid

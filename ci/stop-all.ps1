@@ -27,6 +27,12 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
 # ════════════════════════════════════════════
+#  Stop Docker containers
+# ════════════════════════════════════════════
+Info "Stopping Docker containers..."
+docker rm -f price-prediction-api 2>$null
+
+# ════════════════════════════════════════════
 #  Stop from PID file
 # ════════════════════════════════════════════
 if (Test-Path $pidFile) {
