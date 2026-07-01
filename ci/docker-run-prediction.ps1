@@ -57,7 +57,12 @@ for ($i = 0; $i -lt 15; $i++) {
         $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/health" -UseBasicParsing -TimeoutSec 5
         if ($resp.Content -match 'healthy') { $ready = $true; break }
     } catch {
-        $lastError = $_.Exception.Message
+        # Map localized .NET exception to consistent English messages
+        $nativeMsg = $_.Exception.Message
+        if ($nativeMsg -match "connection.*closed|closed.*connection") { $lastError = "Connection closed" }
+        elseif ($nativeMsg -match "refused|actively refused") { $lastError = "Connection refused" }
+        elseif ($nativeMsg -match "timeout|timed out") { $lastError = "Timed out" }
+        else { $lastError = $nativeMsg }
         Write-Host "  Health check $($i+1)/15: $lastError" -ForegroundColor Yellow
     }
 }
