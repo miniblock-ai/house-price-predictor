@@ -21,12 +21,25 @@ Write-Host "  Context: $BuildDir" -ForegroundColor Gray
 
 $oldPref = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
+
+# Check Docker is running first
+$dockerInfo = docker info 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) {
+    if ($dockerInfo -match "cannot connect|daemon|pipe|npipe") {
+        Write-Host "[FAIL] Docker Desktop is not running. Please start Docker Desktop first." -ForegroundColor Red
+    } else {
+        Write-Host "[FAIL] Docker is not available: $dockerInfo" -ForegroundColor Red
+    }
+    exit 1
+}
+
 docker build -t $ImageName $BuildDir 2>$BuildLog
 $exitCode = $LASTEXITCODE
 $ErrorActionPreference = $oldPref
 
 if ($exitCode -ne 0) {
-    Write-Host "[FAIL] Docker build failed — check $BuildLog" -ForegroundColor Red
+    $msg = Get-Content $BuildLog -Tail 3 | Out-String
+    Write-Host "[FAIL] Docker build failed. Last error: $msg" -ForegroundColor Red
     exit 1
 }
 
