@@ -31,7 +31,7 @@ Start-Sleep 3
 $ready = $false; $lastError = ""
 for ($i = 0; $i -lt 15; $i++) {
     try { $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/api/v1/health" -UseBasicParsing -TimeoutSec 5; if ($resp.StatusCode -eq 200) { $ready = $true; break } }
-    catch { $nativeMsg = $_.Exception.Message; $lastError = if ($nativeMsg -match "refused") {"Connection refused"} elseif ($nativeMsg -match "timeout") {"Timed out"} elseif ($nativeMsg -match "closed") {"Connection closed"} else {$nativeMsg}; Write-Host "  Health check $($i+1)/15: $lastError" -ForegroundColor Yellow }
+    catch { $lastError = $_.Exception.Message; Write-Host "  Health check $($i+1)/15: $lastError" -ForegroundColor Yellow }
     Start-Sleep 2
 }
 if (-not $ready) { Write-Host "[FAIL] value-estimator-api failed - check $Log" -ForegroundColor Red; exit 1 }
