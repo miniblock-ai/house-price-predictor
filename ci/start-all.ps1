@@ -22,16 +22,17 @@ function Pass { Write-Host "[PASS] $args" -ForegroundColor Green }
 function Fail { Write-Host "[FAIL] $args" -ForegroundColor Red; exit 1 }
 function Info { Write-Host "[INFO] $args" -ForegroundColor Yellow }
 
-# Port cleanup 鈥?skip Docker-mapped ports (handled by docker rm -f)
+# Port cleanup -- skip Docker-mapped ports (handled by docker rm -f)
 $ProcessPorts = @(8001, 8002, 3001)
+$killedPids = @{}
 Info "Checking port availability..."
-# Only clean up non-Docker ports to avoid killing docker-proxy
 foreach ($port in $ProcessPorts) {
     netstat -ano | Select-String ":$port " | Select-String "LISTENING" | ForEach-Object {
         $p = ($_ -split '\s+')[-1]
-        if ($p -match '^\d+$') { 
+        if ($p -match '^\d+' -and -not $killedPids.ContainsKey($p)) { 
+            $killedPids[$p] = $true
             $processName = (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName
-            Info "Port $port in use by $processName (PID $p) 鈥?killed"
+            Info "Port $port in use by $processName (PID $p) -- killed"
             Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
         }
     }
