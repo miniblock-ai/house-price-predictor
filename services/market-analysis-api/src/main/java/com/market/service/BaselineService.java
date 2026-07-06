@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.market.client.PredictionClient;
 import com.market.dto.BaselineResult;
+import com.market.exception.MlApiUnavailableException;
 import com.market.model.PropertyRecord;
 import com.market.repository.PropertyRepository;
 import org.slf4j.Logger;
@@ -22,6 +23,9 @@ import java.util.stream.Collectors;
 public class BaselineService {
 
     private static final Logger log = LoggerFactory.getLogger(BaselineService.class);
+
+    static final int ML_API_RETRY_MAX = 3;
+    static final long ML_API_RETRY_BASE_MS = 500;
 
     private final PropertyRepository propertyRepository;
     private final PredictionClient predictionClient;
@@ -84,7 +88,8 @@ public class BaselineService {
             predictRequest.put("features", List.of(baselineFeatures));
 
             // We need to call ML API synchronously here since we're in a blocking context
-            Map<String, Object> mlResult = predictionClient.predict(predictRequest).block();
+            // Retry with backoff handles transient failures (e.g. Docker cold start)
+            Map<String, Object> mlResult = callMlApiWithRetry(predictRequest);
             double baselinePrice = extractPrice(mlResult);
 
             BaselineResult result = new BaselineResult(baselinePrice, baselineFeatures);
@@ -219,5 +224,41 @@ public class BaselineService {
         }
         log.warn("ML API response format unexpected: {}", mlResult);
         throw new IllegalStateException("Unexpected ML API response format");
+    }
+
+    /**
+     * Calls ML API with retry and exponential backoff.
+     * Handles transient failures on the first request after restart:
+     * - ML API worker lazy-loading dependencies on first /predict call
+     * - Reactor Netty connection pool warm-up
+     * - Brief network glitches
+     * Note: Docker cold start is NOT the main cause — the CI health check
+     * (docker-run-prediction.ps1) already waits for model_loaded=True.
+     */
+    private Map<String, Object> callMlApiWithRetry(Map<String, Object> predictRequest) {
+        MlApiUnavailableException lastException = null;
+        for (int attempt = 0; attempt < ML_API_RETRY_MAX; attempt++) {
+            try {
+                Map<String, Object> result = predictionClient.predict(predictRequest).block();
+                log.info("ML API call succeeded on attempt {}/{}", attempt + 1, ML_API_RETRY_MAX);
+                return result;
+            } catch (MlApiUnavailableException e) {
+                lastException = e;
+                if (attempt < ML_API_RETRY_MAX - 1) {
+                    long delay = ML_API_RETRY_BASE_MS * (1L << attempt); // 500ms, 1000ms, 2000ms
+                    log.warn("ML API call failed on attempt {}/{} (retrying in {}ms): {}",
+                            attempt + 1, ML_API_RETRY_MAX, delay, e.getMessage());
+                    try {
+                        Thread.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new MlApiUnavailableException("Retry interrupted", ie);
+                    }
+                } else {
+                    log.error("ML API call failed after {} attempts", ML_API_RETRY_MAX);
+                }
+            }
+        }
+        throw lastException;
     }
 }

@@ -2,6 +2,7 @@ package com.market.service;
 
 import com.market.client.PredictionClient;
 import com.market.dto.BaselineResult;
+import com.market.exception.MlApiUnavailableException;
 import com.market.model.PropertyRecord;
 import com.market.repository.PropertyRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -144,5 +145,24 @@ class BaselineServiceTest {
         assertNotNull(result);
         assertEquals(250000.0, result.getBaselinePrice(), 0.001);
         assertEquals(2000.0, (Double) result.getBaselineFeatures().get("square_footage"), 0.001);
+    }
+
+    @Test
+    void getBaseline_shouldRetryWhenMlApiReturnsTransientError() {
+        // Simulate ML API cold start: first call fails, second succeeds
+        List<PropertyRecord> records = createSampleRecords();
+        when(propertyRepository.findAll()).thenReturn(records);
+
+        Map<String, Object> mlResult = Map.of("predictions", List.of(240000.0));
+        when(predictionClient.predict(any()))
+                .thenReturn(Mono.error(new MlApiUnavailableException("Connection refused")))
+                .thenReturn(Mono.just(mlResult));
+
+        BaselineResult result = baselineService.getBaseline().block();
+
+        assertNotNull(result);
+        assertTrue(result.getBaselinePrice() > 0);
+        // predict() should have been called twice (first fail, then retry succeeds)
+        verify(predictionClient, times(2)).predict(any());
     }
 }
