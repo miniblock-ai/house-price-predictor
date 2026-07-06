@@ -1,29 +1,23 @@
-﻿# e2e-run.ps1 鈥?Run Playwright E2E tests
-# Usage: .\ci\e2e-run.ps1 [--headed] [--demo]
-#
-# Parameters:
-#   --headed    Run Playwright in headed mode (visible browser)
-#   --demo      Demo mode: headed + slow-mo 500ms (simulates human click speed)
-#
-# Prerequisites:
-#   - Services running (run e2e-start.ps1 first)
-#   - Node.js 18+ with pnpm
-#   - Chrome (for Playwright)
+#!/usr/bin/env pwsh
+<#
+.SYNOPSIS
+    Run Playwright E2E tests
+.DESCRIPTION
+    Runs Playwright E2E tests against running services on ports 8000/8002/3001.
+.PARAMETER headed
+    Run Playwright in headed mode (visible browser)
+.PARAMETER demo
+    Demo mode: headed + slow-mo 1000ms (simulates human click speed)
+#>
+
+param(
+    [switch]$headed,
+    [switch]$demo
+)
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$FrontendDir = Join-Path $ProjectRoot "services/nextjs-portal"
-
-# Parse --headed / --demo from $args
-$Headed = $false
-$Demo = $false
-foreach ($arg in $args) {
-    switch ($arg) {
-        "--headed" { $Headed = $true }
-        "--demo"   { $Demo = $true }
-        default    { Write-Host "[WARN] Unknown argument: $arg" -ForegroundColor Yellow }
-    }
-}
+$PortalDir = Join-Path $ProjectRoot "frontend/apps/prediction-portal"
 
 function Pass  { Write-Host "[PASS] $args" -ForegroundColor Green }
 function Fail  { Write-Host "[FAIL] $args" -ForegroundColor Red; exit 1 }
@@ -31,13 +25,13 @@ function Info  { Write-Host "[INFO] $args" -ForegroundColor Yellow }
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "  E2E Tests 鈥?Playwright" -ForegroundColor Cyan
+Write-Host "  E2E Tests - Playwright" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# ════════════════════════════════════════════
 #  Check services are running
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# ════════════════════════════════════════════
 Info "Checking services..."
 $mlOk = $false; $bkOk = $false; $feOk = $false
 try {
@@ -53,30 +47,34 @@ try {
     if ($r3.StatusCode -eq 200) { $feOk = $true }
 } catch {}
 
-if (-not $mlOk) { Fail "ML API not running on port 8000. Run '.\ci\e2e-start.ps1' first." }
-if (-not $bkOk) { Fail "Backend not running on port 8002. Run '.\ci\e2e-start.ps1' first." }
-if (-not $feOk) { Fail "Frontend not running on port 3001. Run '.\ci\e2e-start.ps1' first." }
+if (-not $mlOk) { Fail "ML API not running on port 8000. Run '.\ci\start-all.ps1' first." }
+if (-not $bkOk) { Fail "Backend not running on port 8002. Run '.\ci\start-all.ps1' first." }
+if (-not $feOk) { Fail "Frontend not running on port 3001. Run '.\ci\start-all.ps1' first." }
 Pass "Services are running"
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# ════════════════════════════════════════════
 #  Run Playwright
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# ════════════════════════════════════════════
 Info "Running Playwright E2E tests..."
-Push-Location $FrontendDir
-try {
-    pnpm install --frozen-lockfile 2>$null
+$testPath = "e2e/app2/market-analysis-e2e.spec.ts"
+$testFullPath = Join-Path $PortalDir $testPath
+if (-not (Test-Path $testFullPath)) {
+    Fail "Test file not found: $testFullPath"
+}
 
-    if ($Demo) {
-        Info "Running in DEMO mode (auto-headed + slow-mo 1000ms)"
+Push-Location $PortalDir
+try {
+    if ($demo) {
+        Info "DEMO mode (headed + slow-mo 1000ms)"
         $env:PLAYWRIGHT_SLOW_MO = "1000"
-        npx playwright test e2e/market-analysis-e2e.spec.ts --reporter=list
+        npx playwright test $testPath --reporter=list --headed
         Remove-Item Env:PLAYWRIGHT_SLOW_MO
-    } elseif ($Headed) {
-        Info "Running in HEADED mode (browser visible)"
-        npx playwright test e2e/market-analysis-e2e.spec.ts --reporter=list --headed
+    } elseif ($headed) {
+        Info "HEADED mode (browser visible)"
+        npx playwright test $testPath --reporter=list --headed
     } else {
-        Info "Running in HEADLESS mode"
-        npx playwright test e2e/market-analysis-e2e.spec.ts --reporter=list
+        Info "HEADLESS mode"
+        npx playwright test $testPath --reporter=list
     }
     if ($LASTEXITCODE -ne 0) { Fail "E2E tests failed" }
 } finally {
@@ -88,5 +86,3 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "  All E2E tests passed!" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
-Info "Coverage: Dashboard / Filter / DataTable / What-If / Export / Nav"
-Info "Model: LinearRegression"
