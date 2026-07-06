@@ -252,16 +252,24 @@ test.describe('EPIC-07 Baseline Optimization — What-If (E2E)', () => {
   test('ST015-E2E-03: Baseline property stable across page reloads', async ({ page }) => {
     await page.goto('/app2/what-if');
 
-    // Wait for baseline to load
+    // Wait for baseline to load (form inputs populated)
     await expect(page.locator('[data-testid="content.what-if.form.square-footage"]')).toBeVisible({ timeout: 10000 });
+
+    // Run Analysis to populate result card with baseline-price
+    await page.locator('[data-testid="content.what-if.run"]').click();
+    await expect(page.locator('[data-testid="content.what-if.result.baseline-price"]')).toBeVisible({ timeout: 10000 });
 
     // Record baseline price from first load
     const firstPrice = await page.locator('[data-testid="content.what-if.result.baseline-price"]').textContent();
 
-    // Reload and record again (x3)
+    // Reload and record again (x2 more, total 3)
     for (let i = 0; i < 2; i++) {
       await page.reload();
       await expect(page.locator('[data-testid="content.what-if.form.square-footage"]')).toBeVisible({ timeout: 10000 });
+
+      // Run Analysis again to populate result
+      await page.locator('[data-testid="content.what-if.run"]').click();
+      await expect(page.locator('[data-testid="content.what-if.result.baseline-price"]')).toBeVisible({ timeout: 10000 });
 
       const nextPrice = await page.locator('[data-testid="content.what-if.result.baseline-price"]').textContent();
       expect(nextPrice).toBe(firstPrice);
