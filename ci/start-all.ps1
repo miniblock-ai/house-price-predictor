@@ -22,10 +22,12 @@ function Pass { Write-Host "[PASS] $args" -ForegroundColor Green }
 function Fail { Write-Host "[FAIL] $args" -ForegroundColor Red; exit 1 }
 function Info { Write-Host "[INFO] $args" -ForegroundColor Yellow }
 
-# Port cleanup
-$Ports = @(8000, 8001, 8002, 3001)
+# Port cleanup — skip Docker-mapped ports (handled by docker rm -f)
+$DockerPorts = @(8000)
+$ProcessPorts = @(8001, 8002, 3001)
 Info "Checking port availability..."
-foreach ($port in $Ports) {
+# Only clean up non-Docker ports to avoid killing docker-proxy
+foreach ($port in $ProcessPorts) {
     netstat -ano | Select-String ":$port " | Select-String "LISTENING" | ForEach-Object {
         $p = ($_ -split '\s+')[-1]
         if ($p -match '^\d+$') { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }

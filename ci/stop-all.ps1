@@ -29,10 +29,10 @@ Write-Host ""
 $pidFile = Join-Path $ProjectRoot ".e2e-pids.json"
 if (Test-Path $pidFile) { Remove-Item $pidFile -Force -ErrorAction SilentlyContinue; Info "Removed PID file" }
 
-# Fallback: check all ports
-$Ports = @(8000, 8001, 8002, 3001)
+# Fallback: check non-Docker ports only (Docker handled by stop-prediction.ps1)
+$ProcessPorts = @(8001, 8002, 3001)
 Info "Checking ports for remaining processes..."
-foreach ($port in $Ports) {
+foreach ($port in $ProcessPorts) {
     netstat -ano | Select-String ":$port " | Select-String "LISTENING" | ForEach-Object {
         $p = ($_ -split '\s+')[-1]
         if ($p -match '^\d+$') { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue; Info "  Stopped PID $p on port $port" }
