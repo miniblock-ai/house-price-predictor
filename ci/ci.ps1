@@ -1,4 +1,4 @@
-# ci.ps1 — local CI: lint → test → build → e2e, one command
+﻿# ci.ps1 鈥?local CI: lint 鈫?test 鈫?build 鈫?e2e, one command
 # Usage: .\ci\ci.ps1  (run from project root or from anywhere)
 
 $ErrorActionPreference = "Stop"

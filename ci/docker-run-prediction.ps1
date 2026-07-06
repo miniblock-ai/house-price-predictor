@@ -1,11 +1,11 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Run Docker container for price-prediction-api
 .DESCRIPTION
     Starts the price-prediction-api Docker container.
     Removes any existing container with the same name first.
-    Port mapping: host 8000 → container 8000
+    Port mapping: host 8000 鈫?container 8000
 .PARAMETER Port
     Host port to map (default: 8000)
 #>
@@ -64,7 +64,7 @@ for ($i = 0; $i -lt 15; $i++) {
 }
 
 if (-not $ready) {
-    Write-Host "[FAIL] Container failed to start — check $StdLog / $ErrLog" -ForegroundColor Red
+    Write-Host "[FAIL] Container failed to start 鈥?check $StdLog / $ErrLog" -ForegroundColor Red
     exit 1
 }
 

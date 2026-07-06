@@ -1,13 +1,13 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Start all 4 microservices for E2E testing
 .DESCRIPTION
     Orchestrates startup by calling individual start-*.ps1 scripts:
-      1. start-prediction.ps1  → price-prediction-api (:8000) via Docker
-      2. start-estimator.ps1   → value-estimator-api  (:8001) via uvicorn
-      3. start-market.ps1      → market-analysis-api  (:8002) via Maven
-      4. start-portal.ps1      → prediction-portal    (:3001) via pnpm dev
+      1. start-prediction.ps1  鈫?price-prediction-api (:8000) via Docker
+      2. start-estimator.ps1   鈫?value-estimator-api  (:8001) via uvicorn
+      3. start-market.ps1      鈫?market-analysis-api  (:8002) via Maven
+      4. start-portal.ps1      鈫?prediction-portal    (:3001) via pnpm dev
 .PARAMETER SkipBuild
     Skip Docker image build for price-prediction-api
 #>
@@ -22,7 +22,7 @@ function Pass { Write-Host "[PASS] $args" -ForegroundColor Green }
 function Fail { Write-Host "[FAIL] $args" -ForegroundColor Red; exit 1 }
 function Info { Write-Host "[INFO] $args" -ForegroundColor Yellow }
 
-# Port cleanup — skip Docker-mapped ports (handled by docker rm -f)
+# Port cleanup 鈥?skip Docker-mapped ports (handled by docker rm -f)
 $ProcessPorts = @(8001, 8002, 3001)
 Info "Checking port availability..."
 # Only clean up non-Docker ports to avoid killing docker-proxy
@@ -31,7 +31,7 @@ foreach ($port in $ProcessPorts) {
         $p = ($_ -split '\s+')[-1]
         if ($p -match '^\d+$') { 
             $processName = (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName
-            Info "Port $port in use by $processName (PID $p) — killed"
+            Info "Port $port in use by $processName (PID $p) 鈥?killed"
             Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
         }
     }

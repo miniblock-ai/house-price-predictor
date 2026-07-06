@@ -1,4 +1,4 @@
-# e2e-run.ps1 — Run Playwright E2E tests
+﻿# e2e-run.ps1 鈥?Run Playwright E2E tests
 # Usage: .\ci\e2e-run.ps1 [--headed] [--demo]
 #
 # Parameters:
@@ -31,13 +31,13 @@ function Info  { Write-Host "[INFO] $args" -ForegroundColor Yellow }
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "  E2E Tests — Playwright" -ForegroundColor Cyan
+Write-Host "  E2E Tests 鈥?Playwright" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 #  Check services are running
-# ════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 Info "Checking services..."
 $mlOk = $false; $bkOk = $false; $feOk = $false
 try {
@@ -58,9 +58,9 @@ if (-not $bkOk) { Fail "Backend not running on port 8002. Run '.\ci\e2e-start.ps
 if (-not $feOk) { Fail "Frontend not running on port 3001. Run '.\ci\e2e-start.ps1' first." }
 Pass "Services are running"
 
-# ════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 #  Run Playwright
-# ════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 Info "Running Playwright E2E tests..."
 Push-Location $FrontendDir
 try {

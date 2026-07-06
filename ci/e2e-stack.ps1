@@ -1,4 +1,4 @@
-# e2e-stack.ps1 — Full-stack E2E: start services, run tests, stop services
+﻿# e2e-stack.ps1 鈥?Full-stack E2E: start services, run tests, stop services
 # Usage: .\ci\e2e-stack.ps1 [--headed] [--demo]
 #
 # Parameters:
@@ -6,9 +6,9 @@
 #   --demo      Demo mode: headed + slow-mo 500ms (simulates human click speed)
 #
 # This script orchestrates:
-#   1. e2e-start.ps1 — Start ML API and Backend
-#   2. e2e-run.ps1    — Run Playwright tests
-#   3. e2e-stop.ps1   — Stop services
+#   1. e2e-start.ps1 鈥?Start ML API and Backend
+#   2. e2e-run.ps1    鈥?Run Playwright tests
+#   3. e2e-stop.ps1   鈥?Stop services
 
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -29,7 +29,7 @@ function Info { Write-Host "[INFO] $args" -ForegroundColor Yellow }
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "  Full-Stack E2E — CI Pipeline" -ForegroundColor Cyan
+Write-Host "  Full-Stack E2E 鈥?CI Pipeline" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
