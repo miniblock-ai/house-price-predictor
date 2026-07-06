@@ -23,7 +23,7 @@ $oldPref = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 
 # Check Docker is running first (no pipe to preserve $LASTEXITCODE)
-docker info 2>$null
+docker info 2>$null >$null
 if ($LASTEXITCODE -ne 0) {
     $dockerErr = docker info 2>&1 | Out-String
     if ($dockerErr -match "cannot connect|daemon|pipe|npipe") {

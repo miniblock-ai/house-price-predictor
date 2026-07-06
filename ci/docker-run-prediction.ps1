@@ -27,7 +27,7 @@ $ErrLog    = Join-Path $LogDir "price-prediction-api.err.log"
 Write-Host "Starting Docker container: $ContainerName (port $Port)" -ForegroundColor Cyan
 
 # Check Docker is running (no pipe to preserve $LASTEXITCODE)
-docker info 2>$null
+docker info 2>$null >$null
 if ($LASTEXITCODE -ne 0) {
     $dockerErr = docker info 2>&1 | Out-String
     if ($dockerErr -match "cannot connect|daemon|pipe|npipe") {
