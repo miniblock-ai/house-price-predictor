@@ -227,7 +227,6 @@ test.describe('EPIC-07 Baseline Optimization — What-If (E2E)', () => {
       // Run Analysis again to populate result
       await page.locator('[data-testid="content.what-if.run"]').click();
       await expect(page.locator('[data-testid="content.what-if.result.baseline-price"]')).toBeVisible({ timeout: 10000 });
-
       const nextPrice = await page.locator('[data-testid="content.what-if.result.baseline-price"]').textContent();
       expect(nextPrice).toBe(firstPrice);
     }
