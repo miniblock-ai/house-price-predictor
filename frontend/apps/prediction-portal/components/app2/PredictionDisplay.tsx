@@ -115,16 +115,16 @@ export function PredictionDisplay({ result }: PredictionDisplayProps) {
       <Card title="Predicted Result">
         {/* Primary price */}
         <div className="text-center py-4">
-          <p className="text-4xl font-bold text-neutral-900">
+          <p className="text-4xl font-bold text-neutral-900" data-testid="content.what-if.result.predicted-price">
             {currency.format(result.predicted_price)}
           </p>
 
           <div className="flex items-center justify-center gap-2 mt-2">
-            <span className={`text-sm font-semibold ${isUp ? 'text-success' : 'text-error'}`}>
+            <span data-testid="content.what-if.result.delta" className={`text-sm font-semibold ${isUp ? 'text-success' : 'text-error'}`}>
               {isUp ? '▲' : '▼'} {isUp ? '+' : '-'}
               {currency.format(Math.abs(result.delta))}
             </span>
-            <span className={`text-sm font-semibold ${isUp ? 'text-success' : 'text-error'}`}>
+            <span data-testid="content.what-if.result.delta-percent" className={`text-sm font-semibold ${isUp ? 'text-success' : 'text-error'}`}>
               ({isUp ? '+' : '-'}
               {Math.abs(result.delta_percent).toFixed(1)}%)
             </span>
@@ -135,7 +135,7 @@ export function PredictionDisplay({ result }: PredictionDisplayProps) {
         <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-100">
           <div className="bg-neutral-50 rounded-lg p-3">
             <p className="text-xs text-neutral-500">Baseline Price</p>
-            <p className="text-lg font-semibold text-neutral-700">
+            <p className="text-lg font-semibold text-neutral-700" data-testid="content.what-if.result.baseline-price">
               {currency.format(result.baseline_price)}
             </p>
             <p className="text-xs text-neutral-400 mt-1">Market average</p>
@@ -149,7 +149,7 @@ export function PredictionDisplay({ result }: PredictionDisplayProps) {
             <p
               className={`text-xs mt-1 flex items-center ${isUp ? 'text-green-600' : 'text-error'}`}
             >
-              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg data-testid="content.what-if.result.delta-indicator" className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"

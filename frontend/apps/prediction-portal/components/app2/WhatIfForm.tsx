@@ -24,6 +24,7 @@ const FIELDS: Array<{
   max: number;
   step: number;
   format?: (v: number) => string;
+  testId: string;
 }> = [
   {
     key: 'square_footage',
@@ -32,10 +33,11 @@ const FIELDS: Array<{
     max: 5000,
     step: 50,
     format: (v) => v.toLocaleString(),
+    testId: 'content.what-if.form.square-footage',
   },
-  { key: 'bedrooms', label: 'Bedrooms', min: 1, max: 10, step: 1 },
-  { key: 'bathrooms', label: 'Bathrooms', min: 1, max: 10, step: 0.5 },
-  { key: 'year_built', label: 'Year Built', min: 1800, max: 2030, step: 1 },
+  { key: 'bedrooms', label: 'Bedrooms', min: 1, max: 10, step: 1, testId: 'content.what-if.form.bedrooms' },
+  { key: 'bathrooms', label: 'Bathrooms', min: 1, max: 10, step: 0.5, testId: 'content.what-if.form.bathrooms' },
+  { key: 'year_built', label: 'Year Built', min: 1800, max: 2030, step: 1, testId: 'content.what-if.form.year-built' },
   {
     key: 'lot_size',
     label: 'Lot Size',
@@ -43,9 +45,10 @@ const FIELDS: Array<{
     max: 50000,
     step: 100,
     format: (v) => v.toLocaleString(),
+    testId: 'content.what-if.form.lot-size',
   },
-  { key: 'distance_to_city_center', label: 'Distance to Center', min: 0, max: 20, step: 0.1 },
-  { key: 'school_rating', label: 'School Rating', min: 0, max: 10, step: 0.1 },
+  { key: 'distance_to_city_center', label: 'Distance to Center', min: 0, max: 20, step: 0.1, testId: 'content.what-if.form.distance' },
+  { key: 'school_rating', label: 'School Rating', min: 0, max: 10, step: 0.1, testId: 'content.what-if.form.school-rating' },
 ];
 
 export function WhatIfForm() {
@@ -115,7 +118,7 @@ export function WhatIfForm() {
   // Loading state
   if (baselineLoading) {
     return (
-      <div data-testid="content.what-if.loading" className="flex items-center justify-center py-16">
+      <div data-testid="content.what-if.loading.baseline" className="flex items-center justify-center py-16">
         <p className="text-sm text-neutral-400">Loading baseline values...</p>
       </div>
     );
@@ -139,7 +142,7 @@ export function WhatIfForm() {
       {/* Form */}
       <Card title="Scenario Setup">
         <div className="space-y-5">
-          {FIELDS.map(({ key, label, format }) => (
+          {FIELDS.map(({ key, label, format, testId }) => (
             <div key={key} className="flex items-center gap-3">
               <label htmlFor={`whatif-${key}`} className="text-sm text-neutral-500 w-36 shrink-0">
                 {label}
@@ -160,6 +163,7 @@ export function WhatIfForm() {
                   </button>
                   <span
                     id={`whatif-${key}`}
+                    data-testid={testId}
                     className="text-sm font-semibold text-neutral-900 tabular-nums w-20 text-center"
                   >
                     {format ? format(features[key]) : features[key]}
