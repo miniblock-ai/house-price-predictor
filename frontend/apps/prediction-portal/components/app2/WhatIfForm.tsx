@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, Button } from '@project/shared-ui';
 import { analyzeWhatIf, getBaselineProperty } from '@/lib/app2/client';
 import type { WhatIfDto, HouseFeatures } from '@/lib/app2/types';
@@ -49,7 +49,7 @@ export function WhatIfForm() {
   const [result, setResult] = useState<WhatIfDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const scrollPosRef = useRef(0);
+  const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,26 +95,19 @@ export function WhatIfForm() {
 
   const handleCalculate = useCallback(async () => {
     if (!features) return;
-    scrollPosRef.current = window.scrollY;
     setLoading(true);
     setError(null);
     setResult(null);
     try {
       const data = await analyzeWhatIf({ features: [features] });
       setResult(data);
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   }, [features]);
-
-  // Restore scroll position after state updates settle
-  useLayoutEffect(() => {
-    if (!loading && (result || error)) {
-      window.scrollTo(0, scrollPosRef.current);
-    }
-  }, [loading, result, error]);
 
   // Loading state
   if (baselineLoading) {
@@ -191,7 +184,7 @@ export function WhatIfForm() {
       </Card>
 
       {/* Result — fixed min-height prevents layout shift */}
-      <div className="min-h-[320px]">
+      <div ref={resultRef} className="min-h-[320px]">
         {error && <WhatIfError message={error} onRetry={handleCalculate} />}
         {result && !error && <PredictionDisplay result={result} />}
         {!result && !error && (
