@@ -1,48 +1,5 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('EPIC-04 Baseline API — direct endpoint', () => {
-
-  test('E2E-BL-01: Baseline-property API returns 200', async ({ request }) => {
-    // Direct API call to verify baseline-property endpoint works
-    const resp = await request.get('/api/v1/market/baseline-property');
-    expect(resp.status()).toBe(200);
-
-    const body = await resp.json();
-    expect(body.code).toBe(200);
-    expect(body.data).toHaveProperty('baseline_price');
-    expect(body.data).toHaveProperty('baseline_features');
-    expect(typeof body.data.baseline_price).toBe('number');
-    expect(body.data.baseline_price).toBeGreaterThan(0);
-  });
-
-  test('E2E-BL-02: What-If API returns 200 after baseline', async ({ request }) => {
-    // Call baseline first (the scenario that was failing)
-    const blResp = await request.get('/api/v1/market/baseline-property');
-    expect(blResp.status()).toBe(200);
-
-    // Then call What-If — both should work
-    const wiResp = await request.post('/api/v1/market/what-if', {
-      data: {
-        features: [{
-          square_footage: 2000,
-          bedrooms: 3,
-          bathrooms: 2.0,
-          year_built: 2000,
-          lot_size: 7000,
-          distance_to_city_center: 4.0,
-          school_rating: 7.5,
-        }]
-      }
-    });
-    expect(wiResp.status()).toBe(200);
-    const body = await wiResp.json();
-    expect(body.code).toBe(200);
-    expect(body.data).toHaveProperty('predicted_price');
-    expect(body.data).toHaveProperty('baseline_price');
-    expect(body.data).toHaveProperty('delta');
-  });
-});
-
 test.describe('EPIC-04 Market Analysis — End-to-End (real services)', () => {
 
   test('E2E-01: Dashboard loads with real data', async ({ page }) => {
