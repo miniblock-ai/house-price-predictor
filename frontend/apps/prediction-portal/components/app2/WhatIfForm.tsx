@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Card, Button } from '@project/shared-ui';
 import { analyzeWhatIf, getBaselineProperty } from '@/lib/app2/client';
 import type { WhatIfDto, HouseFeatures } from '@/lib/app2/types';
@@ -49,6 +49,7 @@ export function WhatIfForm() {
   const [result, setResult] = useState<WhatIfDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollPosRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +95,7 @@ export function WhatIfForm() {
 
   const handleCalculate = useCallback(async () => {
     if (!features) return;
+    scrollPosRef.current = window.scrollY;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -106,6 +108,13 @@ export function WhatIfForm() {
       setLoading(false);
     }
   }, [features]);
+
+  // Restore scroll position after state updates settle
+  useLayoutEffect(() => {
+    if (!loading && (result || error)) {
+      window.scrollTo(0, scrollPosRef.current);
+    }
+  }, [loading, result, error]);
 
   // Loading state
   if (baselineLoading) {
