@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -77,21 +76,22 @@ public class BaselineService {
             PropertyRecord nearest = findNearestNeighbor(records, median, minValues, maxValues);
 
             // Step 4: Build baseline features map
-            Map<String, Object> baselineFeatures = toFeatureMap(nearest);
-
-            // Step 5: Call ML API to get predicted price for the typical property
+            return toFeatureMap(nearest);
+        }).flatMap(baselineFeatures -> {
+            // Step 5: Call ML API reactively (retryWhen handles transient failures in PredictionClient)
             Map<String, Object> predictRequest = new LinkedHashMap<>();
             predictRequest.put("features", List.of(baselineFeatures));
 
-            // We need to call ML API synchronously here since we're in a blocking context
-            Map<String, Object> mlResult = predictionClient.predict(predictRequest).block();
-            double baselinePrice = extractPrice(mlResult);
+            return predictionClient.predict(predictRequest)
+                    .map(mlResult -> {
+                        double baselinePrice = extractPrice(mlResult);
 
-            BaselineResult result = new BaselineResult(baselinePrice, baselineFeatures);
-            baselineCache.put("baseline", result);
-            log.info("Baseline computed: price={}, features={}", baselinePrice, baselineFeatures);
-            return result;
-        }).subscribeOn(Schedulers.boundedElastic());
+                        BaselineResult result = new BaselineResult(baselinePrice, baselineFeatures);
+                        baselineCache.put("baseline", result);
+                        log.info("Baseline computed: price={}, features={}", baselinePrice, baselineFeatures);
+                        return result;
+                    });
+        });
     }
 
     private Map<String, Double> computeMedianFeatures(List<PropertyRecord> records) {

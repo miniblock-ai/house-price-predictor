@@ -7,7 +7,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.Map;
 
 @Component
@@ -35,8 +37,11 @@ public class PredictionClient {
                                     "ML API returned status " + clientResponse.statusCode() + ": " + body));
                 })
                 .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {})
+                .retryWhen(Retry.backoff(3, Duration.ofMillis(500))
+                        .maxBackoff(Duration.ofSeconds(4))
+                        .filter(e -> e instanceof MlApiUnavailableException))
                 .doOnSuccess(result -> log.info("ML API prediction successful"))
-                .doOnError(e -> log.error("ML API call failed: {}", e.getMessage()))
+                .doOnError(e -> log.error("ML API call failed after retries: {}", e.getMessage()))
                 .onErrorMap(e -> !(e instanceof MlApiUnavailableException),
                         e -> new MlApiUnavailableException("Failed to call ML API: " + e.getMessage()));
     }

@@ -145,4 +145,22 @@ class BaselineServiceTest {
         assertEquals(250000.0, result.getBaselinePrice(), 0.001);
         assertEquals(2000.0, (Double) result.getBaselineFeatures().get("square_footage"), 0.001);
     }
+
+    @Test
+    void getBaseline_delegatesToPredictionClient() {
+        // Retry is handled by PredictionClient internally (retryWhen).
+        // BaselineService calls predict() once and uses the result.
+        List<PropertyRecord> records = createSampleRecords();
+        when(propertyRepository.findAll()).thenReturn(records);
+
+        Map<String, Object> mlResult = Map.of("predictions", List.of(240000.0));
+        when(predictionClient.predict(any())).thenReturn(Mono.just(mlResult));
+
+        BaselineResult result = baselineService.getBaseline().block();
+
+        assertNotNull(result);
+        assertTrue(result.getBaselinePrice() > 0);
+        // predict() called exactly once (retry is inside PredictionClient)
+        verify(predictionClient, times(1)).predict(any());
+    }
 }

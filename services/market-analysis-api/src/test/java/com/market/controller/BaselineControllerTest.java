@@ -1,13 +1,12 @@
 package com.market.controller;
 
+import com.market.dto.ApiResponse;
 import com.market.dto.BaselineResult;
 import com.market.service.BaselineService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import reactor.core.publisher.Mono;
 
 import java.util.LinkedHashMap;
@@ -37,33 +36,23 @@ class BaselineControllerTest {
         when(baselineService.getBaseline()).thenReturn(Mono.just(result));
 
         BaselineController controller = new BaselineController(baselineService);
-        ResponseEntity<Map<String, Object>> response = controller.getBaselineProperty();
+        ApiResponse<BaselineResult> response = controller.getBaselineProperty().block();
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
+        assertEquals(200, response.getCode());
+        assertEquals("success", response.getMessage());
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
-        assertEquals(240000.0, (Double) data.get("baseline_price"), 0.001);
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> baselineFeatures = (Map<String, Object>) data.get("baseline_features");
-        assertEquals(1650.0, (Double) baselineFeatures.get("square_footage"), 0.001);
-        assertEquals(3, baselineFeatures.get("bedrooms"));
-        assertEquals(2.0, (Double) baselineFeatures.get("bathrooms"), 0.001);
-        assertEquals(1997, baselineFeatures.get("year_built"));
-        assertEquals(7000.0, (Double) baselineFeatures.get("lot_size"), 0.001);
-        assertEquals(4.0, (Double) baselineFeatures.get("distance_to_city_center"), 0.001);
-        assertEquals(7.7, (Double) baselineFeatures.get("school_rating"), 0.001);
+        BaselineResult data = response.getData();
+        assertEquals(240000.0, data.getBaselinePrice(), 0.001);
+        assertEquals(features, data.getBaselineFeatures());
     }
 
     @Test
-    void getBaselineProperty_whenServiceFails_shouldReturn500() {
+    void getBaselineProperty_whenServiceFails_shouldPropagateError() {
         when(baselineService.getBaseline())
                 .thenReturn(Mono.error(new IllegalStateException("Unable to compute baseline: dataset is empty")));
 
         BaselineController controller = new BaselineController(baselineService);
 
-        assertThrows(IllegalStateException.class, controller::getBaselineProperty);
+        assertThrows(IllegalStateException.class, () -> controller.getBaselineProperty().block());
     }
 }
