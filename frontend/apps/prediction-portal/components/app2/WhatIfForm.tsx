@@ -7,16 +7,6 @@ import type { WhatIfDto, HouseFeatures } from '@/lib/app2/types';
 import { PredictionDisplay } from './PredictionDisplay';
 import { WhatIfError } from './WhatIfError';
 
-const FALLBACK_FEATURES: HouseFeatures = {
-  square_footage: 2000,
-  bedrooms: 3,
-  bathrooms: 2,
-  year_built: 2005,
-  lot_size: 8000,
-  distance_to_city_center: 5,
-  school_rating: 7.5,
-};
-
 const FIELDS: Array<{
   key: keyof HouseFeatures;
   label: string;
@@ -149,7 +139,7 @@ export function WhatIfForm() {
               </label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-neutral-700 tabular-nums w-16 text-right">
-                  {format ? format(FALLBACK_FEATURES[key]) : FALLBACK_FEATURES[key]}
+                  {format ? format(features[key]) : features[key]}
                 </span>
                 <span className="text-neutral-300">→</span>
                 <div className="flex items-center gap-1">
