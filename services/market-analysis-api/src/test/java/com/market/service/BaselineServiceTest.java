@@ -2,7 +2,6 @@ package com.market.service;
 
 import com.market.client.PredictionClient;
 import com.market.dto.BaselineResult;
-import com.market.exception.MlApiUnavailableException;
 import com.market.model.PropertyRecord;
 import com.market.repository.PropertyRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -148,21 +147,20 @@ class BaselineServiceTest {
     }
 
     @Test
-    void getBaseline_shouldRetryWhenMlApiReturnsTransientError() {
-        // Simulate ML API cold start: first call fails, second succeeds
+    void getBaseline_delegatesToPredictionClient() {
+        // Retry is handled by PredictionClient internally (retryWhen).
+        // BaselineService calls predict() once and uses the result.
         List<PropertyRecord> records = createSampleRecords();
         when(propertyRepository.findAll()).thenReturn(records);
 
         Map<String, Object> mlResult = Map.of("predictions", List.of(240000.0));
-        when(predictionClient.predict(any()))
-                .thenReturn(Mono.error(new MlApiUnavailableException("Connection refused")))
-                .thenReturn(Mono.just(mlResult));
+        when(predictionClient.predict(any())).thenReturn(Mono.just(mlResult));
 
         BaselineResult result = baselineService.getBaseline().block();
 
         assertNotNull(result);
         assertTrue(result.getBaselinePrice() > 0);
-        // predict() should have been called twice (first fail, then retry succeeds)
-        verify(predictionClient, times(2)).predict(any());
+        // predict() called exactly once (retry is inside PredictionClient)
+        verify(predictionClient, times(1)).predict(any());
     }
 }
