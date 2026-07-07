@@ -149,7 +149,10 @@ export function WhatIfForm() {
                 {label}
               </label>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-neutral-700 tabular-nums w-16 text-right">
+                <span
+                  data-testid={testId.replace('form', 'baseline')}
+                  className="text-sm text-neutral-700 tabular-nums w-16 text-right"
+                >
                   {format ? format(baselineFeatures[key]) : baselineFeatures[key]}
                 </span>
                 <span className="text-neutral-300">→</span>
