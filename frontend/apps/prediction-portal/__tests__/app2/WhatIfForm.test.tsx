@@ -40,7 +40,7 @@ describe('WhatIfForm', () => {
     // Never resolve the baseline promise
     vi.mocked(getBaselineProperty).mockReturnValue(new Promise(() => {}));
     render(<WhatIfForm />);
-    expect(screen.getByTestId('content.what-if.loading')).toBeInTheDocument();
+    expect(screen.getByTestId('content.what-if.loading.baseline')).toBeInTheDocument();
   });
 
   it('shows error state when baseline fetch fails', async () => {
@@ -111,5 +111,90 @@ describe('WhatIfForm', () => {
     const plusButtons = screen.getAllByRole('button', { name: /Increase/ });
     expect(minusButtons.length).toBeGreaterThanOrEqual(7);
     expect(plusButtons.length).toBeGreaterThanOrEqual(7);
+  });
+
+  describe('Baseline reference behavior (E2E-07 / E2E-08)', () => {
+
+    it('E2E-07: left baseline label stays fixed when stepper adjusts the right value', async () => {
+      vi.mocked(getBaselineProperty).mockResolvedValue(mockBaseline);
+      render(<WhatIfForm />);
+
+      // Wait for form to load
+      await waitFor(() => {
+        expect(screen.getByTestId('content.what-if.form.square-footage')).toBeInTheDocument();
+      });
+
+      // Record left baseline label (fixed reference, uses data-testid from feat/baseline-data-testid)
+      const leftLabel = screen.getByTestId('content.what-if.baseline.square-footage');
+      const initialLeftText = leftLabel.textContent;
+
+      // Click the "+" stepper multiple times
+      const increaseBtn = screen.getByLabelText('Increase Square Footage');
+      for (let i = 0; i < 10; i++) {
+        fireEvent.click(increaseBtn);
+      }
+
+      // Assert: left label unchanged
+      expect(leftLabel.textContent).toBe(initialLeftText);
+
+      // Assert: right value changed (higher than baseline)
+      const rightValue = screen.getByTestId('content.what-if.form.square-footage');
+      expect(rightValue.textContent).not.toBe(initialLeftText);
+    });
+
+    it('E2E-08: baseline_price remains the same across consecutive analyses', async () => {
+      vi.mocked(getBaselineProperty).mockResolvedValue(mockBaseline);
+      vi.mocked(analyzeWhatIf)
+        .mockResolvedValueOnce({
+          ...mockResult,
+          predicted_price: 260000,
+          delta: 20000,
+          delta_percent: 8.33,
+        })
+        .mockResolvedValueOnce({
+          ...mockResult,
+          predicted_price: 270000,
+          delta: 30000,
+          delta_percent: 12.5,
+        });
+
+      render(<WhatIfForm />);
+
+      // Wait for form to load
+      await waitFor(() => {
+        expect(screen.getByTestId('content.what-if.form.square-footage')).toBeInTheDocument();
+      });
+
+      // First run: increase square_footage by 500
+      const increaseSqft = screen.getByLabelText('Increase Square Footage');
+      for (let i = 0; i < 10; i++) {
+        fireEvent.click(increaseSqft);
+      }
+
+      // Click Run Analysis
+      fireEvent.click(screen.getByTestId('content.what-if.run'));
+
+      // Wait for result and record baseline_price
+      await waitFor(() => {
+        expect(screen.getByTestId('content.what-if.result.baseline-price')).toBeInTheDocument();
+      });
+      const firstBaselinePrice = screen.getByTestId('content.what-if.result.baseline-price').textContent;
+
+      // Second run: increase bedrooms by 1
+      const increaseBeds = screen.getByLabelText('Increase Bedrooms');
+      fireEvent.click(increaseBeds);
+
+      // Click Run Analysis again
+      fireEvent.click(screen.getByTestId('content.what-if.run'));
+
+      // Wait for result and verify baseline_price unchanged
+      await waitFor(() => {
+        expect(screen.getByTestId('content.what-if.result.baseline-price')).toBeInTheDocument();
+      });
+      const secondBaselinePrice = screen.getByTestId('content.what-if.result.baseline-price').textContent;
+
+      expect(secondBaselinePrice).toBe(firstBaselinePrice);
+      expect(analyzeWhatIf).toHaveBeenCalledTimes(2);
+    });
   });
 });
