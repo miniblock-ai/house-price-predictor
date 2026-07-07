@@ -43,6 +43,7 @@ const FIELDS: Array<{
 
 export function WhatIfForm() {
   const [features, setFeatures] = useState<HouseFeatures | null>(null);
+  const [baselineFeatures, setBaselineFeatures] = useState<HouseFeatures | null>(null);
   const [baselineLoading, setBaselineLoading] = useState(true);
   const [baselineError, setBaselineError] = useState<string | null>(null);
   const [result, setResult] = useState<WhatIfDto | null>(null);
@@ -58,6 +59,7 @@ export function WhatIfForm() {
       .then((baseline) => {
         if (!cancelled) {
           setFeatures(baseline.baseline_features);
+          setBaselineFeatures(baseline.baseline_features);
           setBaselineLoading(false);
         }
       })
@@ -124,8 +126,8 @@ export function WhatIfForm() {
     );
   }
 
-  // features should be set now
-  if (!features) return null;
+  // features and baselineFeatures should be set now
+  if (!features || !baselineFeatures) return null;
 
   return (
     <div data-testid="content.what-if" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -139,7 +141,7 @@ export function WhatIfForm() {
               </label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-neutral-700 tabular-nums w-16 text-right">
-                  {format ? format(features[key]) : features[key]}
+                  {format ? format(baselineFeatures[key]) : baselineFeatures[key]}
                 </span>
                 <span className="text-neutral-300">→</span>
                 <div className="flex items-center gap-1">
@@ -179,8 +181,8 @@ export function WhatIfForm() {
         </div>
       </Card>
 
-      {/* Result */}
-      <div>
+      {/* Result — fixed min-height prevents layout shift */}
+      <div className="min-h-[320px]">
         {error && <WhatIfError message={error} onRetry={handleCalculate} />}
         {result && !error && <PredictionDisplay result={result} />}
         {!result && !error && (
