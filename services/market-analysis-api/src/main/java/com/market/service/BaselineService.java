@@ -1,6 +1,6 @@
 package com.market.service;
 
-import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.AsyncCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.market.client.PredictionClient;
 import com.market.dto.BaselineResult;
@@ -11,11 +11,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Service
 public class BaselineService {
@@ -24,7 +25,7 @@ public class BaselineService {
 
     private final PropertyRepository propertyRepository;
     private final PredictionClient predictionClient;
-    private final Cache<String, BaselineResult> baselineCache;
+    private final AsyncCache<String, BaselineResult> baselineCache;
 
     public BaselineService(PropertyRepository propertyRepository, PredictionClient predictionClient) {
         this.propertyRepository = propertyRepository;
@@ -32,21 +33,17 @@ public class BaselineService {
         this.baselineCache = Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.MINUTES)
                 .maximumSize(10)
-                .build();
+                .buildAsync();
     }
 
     /**
      * Returns the baseline property (typical property + ML-predicted price).
-     * Uses cache — recomputes only on cache miss.
+     * Uses AsyncCache — concurrent requests share the same async computation.
      */
     public Mono<BaselineResult> getBaseline() {
-        BaselineResult cached = baselineCache.getIfPresent("baseline");
-        if (cached != null) {
-            log.debug("Baseline cache hit");
-            return Mono.just(cached);
-        }
-        log.debug("Baseline cache miss — computing");
-        return computeBaseline();
+        CompletableFuture<BaselineResult> future = baselineCache.get("baseline",
+                (k, exec) -> computeBaseline().toFuture());
+        return Mono.fromFuture(future);
     }
 
     /**
@@ -87,7 +84,6 @@ public class BaselineService {
                         double baselinePrice = extractPrice(mlResult);
 
                         BaselineResult result = new BaselineResult(baselinePrice, baselineFeatures);
-                        baselineCache.put("baseline", result);
                         log.info("Baseline computed: price={}, features={}", baselinePrice, baselineFeatures);
                         return result;
                     });
@@ -95,27 +91,46 @@ public class BaselineService {
     }
 
     private Map<String, Double> computeMedianFeatures(List<PropertyRecord> records) {
-        int n = records.size();
-        List<Double> sqft = records.stream().map(PropertyRecord::getSquareFootage).sorted().collect(Collectors.toList());
-        List<Integer> beds = records.stream().map(PropertyRecord::getBedrooms).sorted().collect(Collectors.toList());
-        List<Double> baths = records.stream().map(PropertyRecord::getBathrooms).sorted().collect(Collectors.toList());
-        List<Integer> years = records.stream().map(PropertyRecord::getYearBuilt).sorted().collect(Collectors.toList());
-        List<Double> lots = records.stream().map(PropertyRecord::getLotSize).sorted().collect(Collectors.toList());
-        List<Double> dists = records.stream().map(PropertyRecord::getDistanceToCityCenter).sorted().collect(Collectors.toList());
-        List<Double> schools = records.stream().map(PropertyRecord::getSchoolRating).sorted().collect(Collectors.toList());
+        // Single pass: collect all feature values to avoid 7 stream traversals
+        List<Double> sqft = new ArrayList<>(records.size());
+        List<Integer> beds = new ArrayList<>(records.size());
+        List<Double> baths = new ArrayList<>(records.size());
+        List<Integer> years = new ArrayList<>(records.size());
+        List<Double> lots = new ArrayList<>(records.size());
+        List<Double> dists = new ArrayList<>(records.size());
+        List<Double> schools = new ArrayList<>(records.size());
+
+        for (PropertyRecord r : records) {
+            sqft.add(r.getSquareFootage());
+            beds.add(r.getBedrooms());
+            baths.add(r.getBathrooms());
+            years.add(r.getYearBuilt());
+            lots.add(r.getLotSize());
+            dists.add(r.getDistanceToCityCenter());
+            schools.add(r.getSchoolRating());
+        }
+
+        sqft.sort(null);
+        beds.sort(null);
+        baths.sort(null);
+        years.sort(null);
+        lots.sort(null);
+        dists.sort(null);
+        schools.sort(null);
 
         Map<String, Double> median = new LinkedHashMap<>();
-        median.put("square_footage", medianOfDoubles(sqft, n));
-        median.put("bedrooms", (double) medianOfInts(beds, n));
-        median.put("bathrooms", medianOfDoubles(baths, n));
-        median.put("year_built", (double) medianOfInts(years, n));
-        median.put("lot_size", medianOfDoubles(lots, n));
-        median.put("distance_to_city_center", medianOfDoubles(dists, n));
-        median.put("school_rating", medianOfDoubles(schools, n));
+        median.put("square_footage", medianOfDoubles(sqft));
+        median.put("bedrooms", (double) medianOfInts(beds));
+        median.put("bathrooms", medianOfDoubles(baths));
+        median.put("year_built", (double) medianOfInts(years));
+        median.put("lot_size", medianOfDoubles(lots));
+        median.put("distance_to_city_center", medianOfDoubles(dists));
+        median.put("school_rating", medianOfDoubles(schools));
         return median;
     }
 
-    private double medianOfDoubles(List<Double> sorted, int n) {
+    private double medianOfDoubles(List<Double> sorted) {
+        int n = sorted.size();
         if (n % 2 == 0) {
             return (sorted.get(n / 2 - 1) + sorted.get(n / 2)) / 2.0;
         } else {
@@ -123,7 +138,8 @@ public class BaselineService {
         }
     }
 
-    private int medianOfInts(List<Integer> sorted, int n) {
+    private int medianOfInts(List<Integer> sorted) {
+        int n = sorted.size();
         if (n % 2 == 0) {
             return (sorted.get(n / 2 - 1) + sorted.get(n / 2)) / 2;
         } else {
@@ -134,20 +150,46 @@ public class BaselineService {
     private void computeRanges(List<PropertyRecord> records,
                                 Map<String, Double> minValues,
                                 Map<String, Double> maxValues) {
-        minValues.put("square_footage", records.stream().mapToDouble(PropertyRecord::getSquareFootage).min().orElse(0));
-        maxValues.put("square_footage", records.stream().mapToDouble(PropertyRecord::getSquareFootage).max().orElse(0));
-        minValues.put("bedrooms", (double) records.stream().mapToInt(PropertyRecord::getBedrooms).min().orElse(0));
-        maxValues.put("bedrooms", (double) records.stream().mapToInt(PropertyRecord::getBedrooms).max().orElse(0));
-        minValues.put("bathrooms", records.stream().mapToDouble(PropertyRecord::getBathrooms).min().orElse(0));
-        maxValues.put("bathrooms", records.stream().mapToDouble(PropertyRecord::getBathrooms).max().orElse(0));
-        minValues.put("year_built", (double) records.stream().mapToInt(PropertyRecord::getYearBuilt).min().orElse(0));
-        maxValues.put("year_built", (double) records.stream().mapToInt(PropertyRecord::getYearBuilt).max().orElse(0));
-        minValues.put("lot_size", records.stream().mapToDouble(PropertyRecord::getLotSize).min().orElse(0));
-        maxValues.put("lot_size", records.stream().mapToDouble(PropertyRecord::getLotSize).max().orElse(0));
-        minValues.put("distance_to_city_center", records.stream().mapToDouble(PropertyRecord::getDistanceToCityCenter).min().orElse(0));
-        maxValues.put("distance_to_city_center", records.stream().mapToDouble(PropertyRecord::getDistanceToCityCenter).max().orElse(0));
-        minValues.put("school_rating", records.stream().mapToDouble(PropertyRecord::getSchoolRating).min().orElse(0));
-        maxValues.put("school_rating", records.stream().mapToDouble(PropertyRecord::getSchoolRating).max().orElse(0));
+        // Single pass: compute min/max for all features in one traversal
+        double minSqft = Double.MAX_VALUE, maxSqft = Double.MIN_VALUE;
+        int minBeds = Integer.MAX_VALUE, maxBeds = Integer.MIN_VALUE;
+        double minBaths = Double.MAX_VALUE, maxBaths = Double.MIN_VALUE;
+        int minYear = Integer.MAX_VALUE, maxYear = Integer.MIN_VALUE;
+        double minLot = Double.MAX_VALUE, maxLot = Double.MIN_VALUE;
+        double minDist = Double.MAX_VALUE, maxDist = Double.MIN_VALUE;
+        double minSchool = Double.MAX_VALUE, maxSchool = Double.MIN_VALUE;
+
+        for (PropertyRecord r : records) {
+            if (r.getSquareFootage() < minSqft) minSqft = r.getSquareFootage();
+            if (r.getSquareFootage() > maxSqft) maxSqft = r.getSquareFootage();
+            if (r.getBedrooms() < minBeds) minBeds = r.getBedrooms();
+            if (r.getBedrooms() > maxBeds) maxBeds = r.getBedrooms();
+            if (r.getBathrooms() < minBaths) minBaths = r.getBathrooms();
+            if (r.getBathrooms() > maxBaths) maxBaths = r.getBathrooms();
+            if (r.getYearBuilt() < minYear) minYear = r.getYearBuilt();
+            if (r.getYearBuilt() > maxYear) maxYear = r.getYearBuilt();
+            if (r.getLotSize() < minLot) minLot = r.getLotSize();
+            if (r.getLotSize() > maxLot) maxLot = r.getLotSize();
+            if (r.getDistanceToCityCenter() < minDist) minDist = r.getDistanceToCityCenter();
+            if (r.getDistanceToCityCenter() > maxDist) maxDist = r.getDistanceToCityCenter();
+            if (r.getSchoolRating() < minSchool) minSchool = r.getSchoolRating();
+            if (r.getSchoolRating() > maxSchool) maxSchool = r.getSchoolRating();
+        }
+
+        minValues.put("square_footage", minSqft);
+        maxValues.put("square_footage", maxSqft);
+        minValues.put("bedrooms", (double) minBeds);
+        maxValues.put("bedrooms", (double) maxBeds);
+        minValues.put("bathrooms", minBaths);
+        maxValues.put("bathrooms", maxBaths);
+        minValues.put("year_built", (double) minYear);
+        maxValues.put("year_built", (double) maxYear);
+        minValues.put("lot_size", minLot);
+        maxValues.put("lot_size", maxLot);
+        minValues.put("distance_to_city_center", minDist);
+        maxValues.put("distance_to_city_center", maxDist);
+        minValues.put("school_rating", minSchool);
+        maxValues.put("school_rating", maxSchool);
     }
 
     private PropertyRecord findNearestNeighbor(List<PropertyRecord> records,
