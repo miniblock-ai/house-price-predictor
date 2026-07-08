@@ -23,6 +23,15 @@ public class BaselineService {
 
     private static final Logger log = LoggerFactory.getLogger(BaselineService.class);
 
+    // ML model feature keys — single source of truth
+    private static final String KEY_SQFT = "square_footage";
+    private static final String KEY_BEDS = "bedrooms";
+    private static final String KEY_BATHS = "bathrooms";
+    private static final String KEY_YEAR = "year_built";
+    private static final String KEY_LOT = "lot_size";
+    private static final String KEY_DIST = "distance_to_city_center";
+    private static final String KEY_SCHOOL = "school_rating";
+
     private final PropertyRepository propertyRepository;
     private final PredictionClient predictionClient;
     private final AsyncCache<String, BaselineResult> baselineCache;
@@ -119,13 +128,13 @@ public class BaselineService {
         schools.sort(null);
 
         Map<String, Double> median = new LinkedHashMap<>();
-        median.put("square_footage", medianOfDoubles(sqft));
-        median.put("bedrooms", (double) medianOfInts(beds));
-        median.put("bathrooms", medianOfDoubles(baths));
-        median.put("year_built", (double) medianOfInts(years));
-        median.put("lot_size", medianOfDoubles(lots));
-        median.put("distance_to_city_center", medianOfDoubles(dists));
-        median.put("school_rating", medianOfDoubles(schools));
+        median.put(KEY_SQFT, medianOfDoubles(sqft));
+        median.put(KEY_BEDS, (double) medianOfInts(beds));
+        median.put(KEY_BATHS, medianOfDoubles(baths));
+        median.put(KEY_YEAR, (double) medianOfInts(years));
+        median.put(KEY_LOT, medianOfDoubles(lots));
+        median.put(KEY_DIST, medianOfDoubles(dists));
+        median.put(KEY_SCHOOL, medianOfDoubles(schools));
         return median;
     }
 
@@ -176,20 +185,20 @@ public class BaselineService {
             if (r.getSchoolRating() > maxSchool) maxSchool = r.getSchoolRating();
         }
 
-        minValues.put("square_footage", minSqft);
-        maxValues.put("square_footage", maxSqft);
-        minValues.put("bedrooms", (double) minBeds);
-        maxValues.put("bedrooms", (double) maxBeds);
-        minValues.put("bathrooms", minBaths);
-        maxValues.put("bathrooms", maxBaths);
-        minValues.put("year_built", (double) minYear);
-        maxValues.put("year_built", (double) maxYear);
-        minValues.put("lot_size", minLot);
-        maxValues.put("lot_size", maxLot);
-        minValues.put("distance_to_city_center", minDist);
-        maxValues.put("distance_to_city_center", maxDist);
-        minValues.put("school_rating", minSchool);
-        maxValues.put("school_rating", maxSchool);
+        minValues.put(KEY_SQFT, minSqft);
+        maxValues.put(KEY_SQFT, maxSqft);
+        minValues.put(KEY_BEDS, (double) minBeds);
+        maxValues.put(KEY_BEDS, (double) maxBeds);
+        minValues.put(KEY_BATHS, minBaths);
+        maxValues.put(KEY_BATHS, maxBaths);
+        minValues.put(KEY_YEAR, (double) minYear);
+        maxValues.put(KEY_YEAR, (double) maxYear);
+        minValues.put(KEY_LOT, minLot);
+        maxValues.put(KEY_LOT, maxLot);
+        minValues.put(KEY_DIST, minDist);
+        maxValues.put(KEY_DIST, maxDist);
+        minValues.put(KEY_SCHOOL, minSchool);
+        maxValues.put(KEY_SCHOOL, maxSchool);
     }
 
     private PropertyRecord findNearestNeighbor(List<PropertyRecord> records,
@@ -214,20 +223,20 @@ public class BaselineService {
                                                 Map<String, Double> minValues,
                                                 Map<String, Double> maxValues) {
         double sum = 0.0;
-        sum += Math.pow(normalize(record.getSquareFootage(), minValues.get("square_footage"), maxValues.get("square_footage"))
-                - normalize(median.get("square_footage"), minValues.get("square_footage"), maxValues.get("square_footage")), 2);
-        sum += Math.pow(normalize(record.getBedrooms(), minValues.get("bedrooms"), maxValues.get("bedrooms"))
-                - normalize(median.get("bedrooms"), minValues.get("bedrooms"), maxValues.get("bedrooms")), 2);
-        sum += Math.pow(normalize(record.getBathrooms(), minValues.get("bathrooms"), maxValues.get("bathrooms"))
-                - normalize(median.get("bathrooms"), minValues.get("bathrooms"), maxValues.get("bathrooms")), 2);
-        sum += Math.pow(normalize(record.getYearBuilt(), minValues.get("year_built"), maxValues.get("year_built"))
-                - normalize(median.get("year_built"), minValues.get("year_built"), maxValues.get("year_built")), 2);
-        sum += Math.pow(normalize(record.getLotSize(), minValues.get("lot_size"), maxValues.get("lot_size"))
-                - normalize(median.get("lot_size"), minValues.get("lot_size"), maxValues.get("lot_size")), 2);
-        sum += Math.pow(normalize(record.getDistanceToCityCenter(), minValues.get("distance_to_city_center"), maxValues.get("distance_to_city_center"))
-                - normalize(median.get("distance_to_city_center"), minValues.get("distance_to_city_center"), maxValues.get("distance_to_city_center")), 2);
-        sum += Math.pow(normalize(record.getSchoolRating(), minValues.get("school_rating"), maxValues.get("school_rating"))
-                - normalize(median.get("school_rating"), minValues.get("school_rating"), maxValues.get("school_rating")), 2);
+        sum += Math.pow(normalize(record.getSquareFootage(), minValues.get(KEY_SQFT), maxValues.get(KEY_SQFT))
+                - normalize(median.get(KEY_SQFT), minValues.get(KEY_SQFT), maxValues.get(KEY_SQFT)), 2);
+        sum += Math.pow(normalize(record.getBedrooms(), minValues.get(KEY_BEDS), maxValues.get(KEY_BEDS))
+                - normalize(median.get(KEY_BEDS), minValues.get(KEY_BEDS), maxValues.get(KEY_BEDS)), 2);
+        sum += Math.pow(normalize(record.getBathrooms(), minValues.get(KEY_BATHS), maxValues.get(KEY_BATHS))
+                - normalize(median.get(KEY_BATHS), minValues.get(KEY_BATHS), maxValues.get(KEY_BATHS)), 2);
+        sum += Math.pow(normalize(record.getYearBuilt(), minValues.get(KEY_YEAR), maxValues.get(KEY_YEAR))
+                - normalize(median.get(KEY_YEAR), minValues.get(KEY_YEAR), maxValues.get(KEY_YEAR)), 2);
+        sum += Math.pow(normalize(record.getLotSize(), minValues.get(KEY_LOT), maxValues.get(KEY_LOT))
+                - normalize(median.get(KEY_LOT), minValues.get(KEY_LOT), maxValues.get(KEY_LOT)), 2);
+        sum += Math.pow(normalize(record.getDistanceToCityCenter(), minValues.get(KEY_DIST), maxValues.get(KEY_DIST))
+                - normalize(median.get(KEY_DIST), minValues.get(KEY_DIST), maxValues.get(KEY_DIST)), 2);
+        sum += Math.pow(normalize(record.getSchoolRating(), minValues.get(KEY_SCHOOL), maxValues.get(KEY_SCHOOL))
+                - normalize(median.get(KEY_SCHOOL), minValues.get(KEY_SCHOOL), maxValues.get(KEY_SCHOOL)), 2);
         return Math.sqrt(sum);
     }
 
@@ -238,13 +247,13 @@ public class BaselineService {
 
     private Map<String, Object> toFeatureMap(PropertyRecord record) {
         Map<String, Object> map = new LinkedHashMap<>();
-        map.put("square_footage", record.getSquareFootage());
-        map.put("bedrooms", record.getBedrooms());
-        map.put("bathrooms", record.getBathrooms());
-        map.put("year_built", record.getYearBuilt());
-        map.put("lot_size", record.getLotSize());
-        map.put("distance_to_city_center", record.getDistanceToCityCenter());
-        map.put("school_rating", record.getSchoolRating());
+        map.put(KEY_SQFT, record.getSquareFootage());
+        map.put(KEY_BEDS, record.getBedrooms());
+        map.put(KEY_BATHS, record.getBathrooms());
+        map.put(KEY_YEAR, record.getYearBuilt());
+        map.put(KEY_LOT, record.getLotSize());
+        map.put(KEY_DIST, record.getDistanceToCityCenter());
+        map.put(KEY_SCHOOL, record.getSchoolRating());
         return map;
     }
 
