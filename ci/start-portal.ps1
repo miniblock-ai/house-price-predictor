@@ -17,7 +17,7 @@ if (-not $pnpm) { Write-Host "[FAIL] pnpm not found in PATH" -ForegroundColor Re
 
 Write-Host "Starting prediction-portal (port $Port)..." -ForegroundColor Cyan
 
-$processId = (Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"pnpm --prefer-offline dev -p $Port > `"$Log`" 2>&1`"" -PassThru -WindowStyle Hidden -WorkingDirectory $PortalDir).Id
+$processId = (Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"pnpm dev -p $Port > `"$Log`" 2>&1`"" -PassThru -WindowStyle Hidden -WorkingDirectory $PortalDir).Id
 Start-Sleep 3
 
 # Phase 1: Wait for port LISTENING (up to ~60s, pnpm resolution can be slow)
